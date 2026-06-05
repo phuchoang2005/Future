@@ -1,0 +1,23 @@
+stateDiagram-v2
+    [*] --> CREATED: User submits training job
+
+    CREATED --> FAILED: Validate failed\nGit clone failed / Disk < 5GB
+    CREATED --> QUEUED: Validate OK\nSnapshot config created
+
+    QUEUED --> RUNNING: Scheduler picks job\nCapacity available
+    QUEUED --> CANCELLED: User/Admin cancels\nbefore execution
+
+    RUNNING --> SUCCESS: Container exits 0\nTraining completed
+    RUNNING --> FAILED: Container exits non-zero\nRuntime error
+    RUNNING --> CANCELLED: User/Admin cancels\nStop container
+    RUNNING --> RETRYING: Server/App restart\nInterrupted job detected
+
+    RETRYING --> QUEUED: Requeue with priority\nor FIFO recovery policy
+    RETRYING --> FAILED: Recovery retry limit exceeded
+
+    FAILED --> CREATED: Manual retry creates NEW job
+    CANCELLED --> CREATED: Manual retry creates NEW job
+
+    SUCCESS --> [*]
+    FAILED --> [*]
+    CANCELLED --> [*]

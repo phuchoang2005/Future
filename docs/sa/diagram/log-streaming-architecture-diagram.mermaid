@@ -1,0 +1,38 @@
+flowchart LR
+
+    User["User Browser"]
+    UI["Training Detail UI"]
+
+    WS["WebSocket Gateway"]
+
+    subgraph Backend["Monolithic Backend"]
+        JobService["Job Service"]
+        LogService["Log Service"]
+        DockerRunner["Docker Runner"]
+    end
+
+    DB[("Database")]
+    LogStorage[("Log Files")]
+
+    subgraph Container["Training Container"]
+        Python["Python Training Process"]
+    end
+
+    User --> UI
+    UI --> WS
+
+    WS --> LogService
+
+    JobService --> DockerRunner
+    DockerRunner --> Python
+
+    Python -- stdout --> DockerRunner
+    Python -- stderr --> DockerRunner
+
+    DockerRunner --> LogService
+
+    LogService --> LogStorage
+    LogService --> DB
+
+    LogService -- log events --> WS
+    WS -- realtime logs --> UI

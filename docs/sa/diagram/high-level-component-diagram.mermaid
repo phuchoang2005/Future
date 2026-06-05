@@ -1,0 +1,46 @@
+flowchart TB
+    U[User / Admin] --> FE[Web Frontend]
+
+    FE --> BE[Monolithic Backend Application]
+
+    subgraph BE[Monolithic Backend Application]
+        AUTH[Auth & Access Control Module]
+        PROJECT[Project Management Module]
+        CONFIG[Configuration Module]
+        JOB[Training Job Module]
+        QUEUE[Queue & Scheduler Module]
+        RUNNER[Docker Runner Module]
+        LOG[Log & Progress Module]
+        ARTIFACT[Artifact & Model Versioning Module]
+        NOTI[Notification Module]
+        AUDIT[Audit Logging Module]
+        ADMIN[Admin Management Module]
+    end
+
+    PROJECT --> GITHUB[GitHub Public Repository]
+    PROJECT --> ZIP[ZIP Upload]
+
+    RUNNER --> DOCKER[Docker Engine]
+    DOCKER --> CONTAINER[Isolated Training Containers]
+
+    CONTAINER --> LOG
+    CONTAINER --> ARTIFACT
+
+    BE --> DB[(Relational Database)]
+    BE --> FS[(File Storage)]
+
+    LOG --> FE
+    NOTI --> EMAIL[Google Workspace Email]
+
+    DB --- AUTH
+    DB --- PROJECT
+    DB --- CONFIG
+    DB --- JOB
+    DB --- QUEUE
+    DB --- ARTIFACT
+    DB --- NOTI
+    DB --- AUDIT
+
+    FS --- PROJECT
+    FS --- LOG
+    FS --- ARTIFACT

@@ -1,0 +1,33 @@
+flowchart TD
+    A[Application / Server Restart] --> B[Bootstrap Recovery Service]
+    B --> C[Load Jobs from DB]
+
+    C --> D[Find Jobs with Status = RUNNING]
+    D --> E{Any RUNNING Jobs?}
+
+    E -- No --> F[Start Normal Scheduler]
+    E -- Yes --> G[Mark Interrupted Jobs as RETRYING]
+
+    G --> H[Stop / Clean Orphan Docker Containers if Exist]
+    H --> I[Create Recovery Execution Record]
+    I --> J[Requeue Job]
+    J --> K[Status = QUEUED]
+    K --> L[Preserve Retry Link / Original Job Reference]
+
+    L --> M[Start Scheduler]
+    M --> N{Running Jobs < 2<br/>and Queue Not Empty?}
+
+    N -- No --> O[Wait]
+    N -- Yes --> P[Pick Oldest QUEUED Job]
+    P --> Q[Status = RUNNING]
+    Q --> R[Launch New Docker Container]
+    R --> S[Run Training From Beginning]
+
+    S --> T{Execution Result}
+    T -- Success --> U[Status = SUCCESS]
+    T -- Failed --> V[Status = FAILED]
+    T -- Cancelled --> W[Status = CANCELLED]
+
+    U --> X[Register Artifacts / Model Version]
+    V --> Y[Notify User]
+    W --> Z[Notify User]

@@ -1,0 +1,26 @@
+sequenceDiagram
+    participant Py as Python Training Code
+    participant C as Docker Container
+    participant R as Docker Runner
+    participant P as Progress Parser
+    participant JS as Job Service
+    participant DB as Database
+    participant WS as WebSocket Gateway
+    participant UI as Training Detail Page
+
+    Py->>C: print JSON progress event
+    Note over Py,C: {"event":"progress","value":35,"epoch":7,"total_epoch":20}
+
+    C->>R: stdout stream
+    R->>P: forward log line
+
+    alt line is progress JSON
+        P->>JS: updateProgress(jobId, value, epoch)
+        JS->>DB: save latest progress
+        JS->>WS: publish progress event
+        WS->>UI: push progress update
+        UI->>UI: update progress bar
+    else normal log line
+        P->>JS: ignore for progress
+        JS->>WS: push as normal log event
+    end

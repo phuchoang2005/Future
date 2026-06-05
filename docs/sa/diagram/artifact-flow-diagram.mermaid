@@ -1,0 +1,34 @@
+flowchart TD
+    A[Training Job RUNNING] --> B[Docker Container]
+    B --> C[Python Training Code]
+    C --> D[Read config.yaml]
+    D --> E[artifact_path inside container<br/>Example: outputs/models]
+
+    C --> F[Generate Artifacts<br/>model.pkl, metrics.json, plots, checkpoints]
+    F --> G[Artifacts stored in container path]
+
+    G --> H{Job Finished?}
+
+    H -->|FAILED / CANCELLED| I[Do not register artifacts<br/>Keep logs only]
+    H -->|SUCCESS| J[Artifact Scanner Service]
+
+    J --> K[Inspect container artifact_path]
+    K --> L{Artifacts found?}
+
+    L -->|No| M[Mark Artifact Status: NOT_FOUND<br/>Notify user]
+    L -->|Yes| N[Copy artifacts from container<br/>to host storage]
+
+    N --> O[Validate artifact files<br/>size, name, checksum, path safety]
+    O --> P{Validation OK?}
+
+    P -->|No| Q[Artifact Registration FAILED<br/>Training remains SUCCESS<br/>Notify user]
+    P -->|Yes| R[Persist artifact metadata]
+
+    R --> S[(Database<br/>artifacts table)]
+    R --> T[Host Artifact Storage<br/>/data/artifacts/project_id/job_id/]
+
+    S --> U[Create Model Version<br/>linked to Project + Job]
+    T --> U
+
+    U --> V[Artifact available for download]
+    V --> W[Audit Log<br/>artifact_registered / artifact_downloaded]
