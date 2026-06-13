@@ -1,7 +1,11 @@
 package com.example.aitraining.api;
 
 import com.example.aitraining.auth.CurrentUserContext;
-import com.example.aitraining.dto.ApiDtos.*;
+import com.example.aitraining.dto.CommonDtos.*;
+import com.example.aitraining.dto.UserDtos.*;
+import com.example.aitraining.dto.ProjectDtos.*;
+import com.example.aitraining.dto.JobDtos.*;
+import com.example.aitraining.dto.SupportDtos.*;
 import com.example.aitraining.service.AuthorizationService;
 import com.example.aitraining.service.ProjectService;
 import jakarta.validation.Valid;

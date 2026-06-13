@@ -39,6 +39,12 @@ public class WebConfig extends OncePerRequestFilter {
             CurrentUserContext.set(users.findActiveByToken(token)
                     .orElseThrow(() -> new UnauthorizedException("Unknown or inactive bearer identity")));
             chain.doFilter(request, response);
+        } catch (UnauthorizedException ex) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("""
+                    {"error":{"code":"UNAUTHENTICATED","message":"%s","correlationId":null,"details":[]}}
+                    """.formatted(ex.getMessage()));
         } finally {
             CurrentUserContext.clear();
         }

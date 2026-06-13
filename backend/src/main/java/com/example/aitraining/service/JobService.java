@@ -6,8 +6,13 @@ import com.example.aitraining.domain.Models.Project;
 import com.example.aitraining.domain.Models.ProjectConfig;
 import com.example.aitraining.domain.Models.TrainingJob;
 import com.example.aitraining.domain.Models.User;
-import com.example.aitraining.dto.ApiDtos.*;
+import com.example.aitraining.dto.CommonDtos.*;
+import com.example.aitraining.dto.UserDtos.*;
+import com.example.aitraining.dto.ProjectDtos.*;
+import com.example.aitraining.dto.JobDtos.*;
+import com.example.aitraining.dto.SupportDtos.*;
 import com.example.aitraining.repo.ConfigRepository;
+import com.example.aitraining.repo.JobQueueRepository;
 import com.example.aitraining.repo.JobRepository;
 import com.example.aitraining.repo.SupportRepository;
 import com.example.aitraining.repo.UserRepository;
@@ -19,14 +24,16 @@ import java.util.UUID;
 @Service
 public class JobService {
     private final JobRepository jobs;
+    private final JobQueueRepository queue;
     private final ConfigRepository configs;
     private final UserRepository users;
     private final SupportRepository support;
     private final AppProperties props;
 
-    public JobService(JobRepository jobs, ConfigRepository configs, UserRepository users,
+    public JobService(JobRepository jobs, JobQueueRepository queue, ConfigRepository configs, UserRepository users,
                       SupportRepository support, AppProperties props) {
         this.jobs = jobs;
+        this.queue = queue;
         this.configs = configs;
         this.users = users;
         this.support = support;
@@ -40,7 +47,7 @@ public class JobService {
                 : request.yamlContent();
         UUID snapshotId = configs.createSnapshot(project.projectId(), config.configId(), yaml);
         TrainingJob job = jobs.create(project.projectId(), user.userId(), snapshotId, null, 0);
-        jobs.enqueue(job.jobId());
+        queue.enqueue(job.jobId());
         TrainingJob queued = jobs.get(job.jobId());
         support.audit(user.userId(), project.projectId(), job.jobId(), "JOB_STARTED", "TRAINING_JOB", job.jobId().toString());
         return new StartJobResponse(queued.jobId(), queued.projectId(), queued.status(), queued.queuePosition(),
@@ -67,6 +74,7 @@ public class JobService {
             throw new IllegalStateException("Terminal jobs cannot be cancelled");
         }
         TrainingJob cancelled = jobs.cancel(job.jobId(), reason);
+        queue.refreshPositions();
         support.audit(user.userId(), project.projectId(), job.jobId(), "JOB_CANCELLED", "TRAINING_JOB", job.jobId().toString());
         return new CancelJobResponse(cancelled.jobId(), cancelled.status(), cancelled.endedAt());
     }
@@ -78,13 +86,13 @@ public class JobService {
         UUID snapshotId = configs.createSnapshot(project.projectId(), null,
                 request.yamlContent() == null || request.yamlContent().isBlank() ? "retryOf: " + original.jobId() : request.yamlContent());
         TrainingJob retry = jobs.create(project.projectId(), user.userId(), snapshotId, original.jobId(), original.retryAttempt() + 1);
-        jobs.enqueue(retry.jobId());
+        queue.enqueue(retry.jobId());
         TrainingJob queued = jobs.get(retry.jobId());
         support.audit(user.userId(), project.projectId(), retry.jobId(), "JOB_RETRIED", "TRAINING_JOB", retry.jobId().toString());
         return new RetryJobResponse(original.jobId(), queued.jobId(), queued.status(), queued.queuePosition());
     }
 
     public QueueSnapshot queueSnapshot() {
-        return new QueueSnapshot(jobs.runningCount(), props.queue().runningLimit(), jobs.queuedCount(), jobs.queueItems());
+        return new QueueSnapshot(queue.runningCount(), props.queue().runningLimit(), queue.queuedCount(), queue.items());
     }
 }

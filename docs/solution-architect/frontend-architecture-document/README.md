@@ -40,138 +40,126 @@ Diagram: [frontend-architecture-context.mermaid](diagrams/frontend-architecture-
 | Real-time updates | Browser WebSocket API with REST polling fallback |
 | API contract | OpenAPI under `docs/solution-architect/low-level-design/api-contracts/openapi.yaml` |
 | Test approach | Unit tests, component tests, contract-aware API mocks, end-to-end tests |
+| Static container | Frontend-owned Nginx image built by `frontend/Dockerfile` |
 
 ## 4. Proposed Folder Structure
 
-The frontend code should use feature-first organization with shared platform modules under `src/app`, `src/shared`, and `src/entities`.
+The frontend code uses route/page modules with shared platform modules under `src/app`, `src/pages`, `src/shared`, and `src/store`. Human-maintained source files should stay small and focused, with page composition split into widgets before files grow beyond roughly 50 lines. Generated OpenAPI output is exempt from that line-size guideline.
 
 ```text
 frontend/
   package.json
+  package-lock.json
   vite.config.ts
+  eslint.config.js
+  playwright.config.ts
+  components.json
+  Dockerfile
+  docker-compose.yml
   tsconfig.json
   index.html
+  nginx/
+    default.conf.template
   src/
     main.tsx
     app/
       App.tsx
-      router.tsx
-      providers.tsx
-      store.ts
-      error-boundary.tsx
-      route-guards.tsx
+      auth/
+        guards.tsx
+      layout/
+        AppShell.tsx
+        Brand.tsx
+        NavLinks.tsx
+        Topbar.tsx
+        UserPanel.tsx
     assets/
       styles/
         global.css
+        base.css
+        layout.css
+        controls.css
+        tables.css
+        workflows.css
+        auth-media.css
         tailwind.css
     shared/
       api/
         axios-client.ts
-        api-error.ts
+        types.ts
         generated/
           types.ts
-          client.ts
-      auth/
-        session.ts
-        permissions.ts
-      config/
-        env.ts
+        types/
+          job.ts
+          project.ts
+          support.ts
+          user.ts
       realtime/
         job-stream-client.ts
-        reconnect-policy.ts
-        event-dedupe.ts
+        job-stream-types.ts
+      components/
+        Badges.tsx
+        CelestialBackground.tsx
+        Dialog.tsx
+        Feedback.tsx
+        Form.tsx
+        Page.tsx
       ui/
         button.tsx
         dialog.tsx
-        data-table.tsx
-        status-badge.tsx
-        empty-state.tsx
-        loading-state.tsx
+        tabs.tsx
       motion/
-        motion-provider.tsx
-        motion-tokens.ts
         variants.ts
+      format/
+        formatters.ts
       utils/
-        date-time.ts
-        duration.ts
-        download.ts
+        cn.ts
     store/
-      root-reducer.ts
-      listener-middleware.ts
+      store.ts
       hooks.ts
+      mock-data.ts
+      session.ts
+      mock/
+        jobs.ts
+        projects.ts
+        support.ts
+        time.ts
+        users.ts
       slices/
-        auth-slice.ts
-        project-slice.ts
-        job-slice.ts
-        log-slice.ts
-        artifact-slice.ts
-        notification-slice.ts
-        admin-slice.ts
-        ui-slice.ts
-        theme-slice.ts
-    entities/
-      user/
-        model.ts
-        selectors.ts
-      project/
-        model.ts
-        selectors.ts
-        thunks.ts
-        permissions.ts
-      training-job/
-        model.ts
-        selectors.ts
-        thunks.ts
-        status.ts
-      log/
-        model.ts
-        selectors.ts
-      artifact/
-        model.ts
-        selectors.ts
-      notification/
-        model.ts
-        selectors.ts
-        thunks.ts
-    features/
-      auth/
-        login-callback-page.tsx
-        logout-button.tsx
-      project-list/
-        project-dashboard-page.tsx
-        project-search.tsx
-        project-table.tsx
-      project-registration/
-        register-project-page.tsx
-        github-project-form.tsx
-        zip-project-upload-form.tsx
-      project-detail/
-        project-detail-page.tsx
-        project-summary-panel.tsx
-        config-editor.tsx
-        training-history-table.tsx
-        start-training-dialog.tsx
-      job-detail/
-        job-detail-page.tsx
-        job-status-panel.tsx
-        log-viewer.tsx
-        progress-panel.tsx
-        cancel-job-dialog.tsx
-        retry-job-dialog.tsx
-      artifacts/
-        artifact-list.tsx
-        artifact-download-button.tsx
-      notifications/
-        notification-list-page.tsx
-        notification-menu.tsx
-      admin/
-        user-management-page.tsx
-        queue-monitor-page.tsx
+        authSlice.ts
+        jobSlice.ts
+        projectSlice.ts
+        supportSlices.ts
     pages/
-      not-found-page.tsx
-      forbidden-page.tsx
-      platform-error-page.tsx
+      ErrorPage.tsx
+      auth/
+        AuthPage.tsx
+        LoginCallbackPage.tsx
+        LoginPage.tsx
+        RegisterAccountPage.tsx
+      jobs/
+        ActionToolbar.tsx
+        CancelJobDialog.tsx
+        JobDetailPage.tsx
+        JobSidebar.tsx
+        LogPanel.tsx
+      projects/
+        ConfigEditor.tsx
+        ProjectDashboardPage.tsx
+        ProjectDetailPage.tsx
+        ProjectTable.tsx
+        RegisterProjectPage.tsx
+        TrainingHistory.tsx
+      notifications/
+        NotificationListPage.tsx
+      admin/
+        AdminAuditPage.tsx
+        AdminQueuePage.tsx
+        AdminUsersPage.tsx
     tests/
+      setup.ts
+      app.test.tsx
+      e2e/
+        smoke.spec.ts
       mocks/
         handlers.ts
         server.ts
@@ -181,17 +169,27 @@ frontend/
 
 | Folder | Responsibility |
 | --- | --- |
-| `app/` | Application composition, router, Redux provider, global error boundaries, route guards. |
+| `app/` | Application route table, route guards, shell layout, navigation, and top bar composition. |
 | `shared/api/` | Axios client, generated OpenAPI types, error normalization, request correlation handling. |
 | `shared/realtime/` | WebSocket connection lifecycle, reconnect, duplicate-event protection, polling fallback helpers. |
-| `shared/auth/` | Current session model and client-side permission helpers. |
-| `shared/ui/` | Reusable components based on shadcn/ui and Radix UI primitives. |
-| `shared/motion/` | Framer Motion provider, shared animation tokens, route/list/dialog variants, and reduced-motion helpers. |
-| `store/` | Redux root store, typed hooks, listener middleware, domain slices, and theme slice. |
-| `entities/` | API models, selectors, service functions, async thunks, and reducers for backend resources. |
-| `features/` | User-facing workflows and page-level feature composition. |
-| `pages/` | Generic route-level pages for errors and navigation fallbacks. |
+| `shared/components/` | App-specific reusable UI composition such as badges, feedback, page frames, and dialogs. |
+| `shared/ui/` | shadcn/Radix primitive wrappers owned by the repository. |
+| `shared/motion/` | Framer Motion route/list/dialog variants and reduced-motion helpers. |
+| `store/` | Redux root store, typed hooks, domain slices, development session helpers, and fixture data. |
+| `pages/` | Route-level pages split by workflow and further decomposed into small widgets. |
 | `tests/` | Frontend test fixtures and API mocks. |
+
+### Applied Tooling
+
+The frontend package applies the documented stack through:
+
+* TailwindCSS v4 via `@tailwindcss/vite` and `src/assets/styles/tailwind.css`.
+* Radix UI primitives and shadcn/ui-owned wrappers under `src/shared/ui/`.
+* React 19 with TypeScript, Vite, Redux Toolkit, Axios, React Router, and Framer Motion.
+* ESLint flat config, Vitest/jsdom component tests, MSW-ready API mocking dependencies, and Playwright E2E configuration.
+* OpenAPI type generation through `npm run generate:api`, writing to `src/shared/api/generated/types.ts`.
+* Browser WebSocket client scaffolding under `src/shared/realtime/job-stream-client.ts`.
+* Focused source modules: route pages live under `src/pages`, layout under `src/app/layout`, reusable UI composition under `src/shared/components`, Redux slices under `src/store/slices`, and CSS is split into small files imported by `global.css`.
 
 ## 5. Frontend Module Model
 

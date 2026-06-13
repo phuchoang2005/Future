@@ -1,0 +1,24 @@
+.sample-account small { color: var(--muted-foreground); font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+@media (min-width: 768px) {
+  .page-header { flex-direction: row; justify-content: space-between; align-items: flex-start; }
+  .toolbar { flex-direction: row; align-items: center; justify-content: space-between; }
+  .search-field { min-width: 280px; }
+  .metric-grid { grid-template-columns: repeat(3, 1fr); }
+  .notification-row { grid-template-columns: auto 1fr auto auto; }
+  .notification-row .button { grid-column: auto; }
+}
+
+@media (min-width: 1200px) {
+  .app-shell { display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); }
+  .sidebar { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; padding: 20px 16px; border-right: 1px solid var(--border); background: color-mix(in srgb, var(--card) 84%, transparent); backdrop-filter: blur(18px); }
+  .mobile-menu { display: none; }
+  .page { padding: 32px; }
+  .table-head, .table-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1.2fr 1.1fr auto; }
+  .data-table:not(.project-table) .table-head, .data-table:not(.project-table) .table-row { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .split-layout { grid-template-columns: minmax(280px, 420px) minmax(0, 1fr); }
+  .job-layout { grid-template-columns: minmax(0, 1fr) 360px; }
+  .job-side { order: 2; }
+  .log-panel { order: 1; }
+  .log-viewer { min-height: 480px; }
+}

@@ -36,14 +36,28 @@ services:
       retries: 12
       start_period: 30s
 
-  load-balancer:
+  backend-load-balancer:
     build:
-      context: .
-      dockerfile: docker/load-balancer/Dockerfile
+      context: ./backend/load-balancer
+    expose:
+      - "80"
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/healthz >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      API_UPSTREAM: http://backend-load-balancer
     ports:
       - "80:80"
     depends_on:
-      - api
+      - backend-load-balancer
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost/healthz >/dev/null"]
       interval: 10s

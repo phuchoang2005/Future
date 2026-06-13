@@ -2,9 +2,9 @@ package com.example.aitraining.config;
 
 import com.example.aitraining.auth.ForbiddenException;
 import com.example.aitraining.auth.UnauthorizedException;
-import com.example.aitraining.dto.ApiDtos.ApiError;
-import com.example.aitraining.dto.ApiDtos.ErrorResponse;
-import com.example.aitraining.dto.ApiDtos.ValidationDetail;
+import com.example.aitraining.dto.CommonDtos.ApiError;
+import com.example.aitraining.dto.CommonDtos.ErrorResponse;
+import com.example.aitraining.dto.CommonDtos.ValidationDetail;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;

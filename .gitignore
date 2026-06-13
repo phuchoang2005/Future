@@ -1,8 +1,67 @@
-AGENTS.md
-SKILL.md
-.agents/
+# macOS and mounted-volume metadata
 .DS_Store
 ._*
+
+# Local agent and editor files
+.agents/
+.codex/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Node and frontend outputs
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/.vite/
+frontend/.vitest/
+frontend/playwright-report/
+frontend/test-results/
+frontend/blob-report/
+
+# Java and backend outputs
+target/
 backend/target/
 backend/storage/
+backend/logs/
+.mvn/wrapper/maven-wrapper.jar
+
+# Build and coverage outputs
+coverage/
+dist/
+build/
+out/
+
+# Docker and runtime state
+*.pid
+*.seed
+*.pid.lock
+docker-compose.override.yml
+
+# Temporary files
+tmp/
+temp/
+.cache/
+.tmp/
+
+# Project scratch notes
 inspired.md

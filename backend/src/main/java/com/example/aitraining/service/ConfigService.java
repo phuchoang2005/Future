@@ -1,7 +1,11 @@
 package com.example.aitraining.service;
 
 import com.example.aitraining.domain.Models.ProjectConfig;
-import com.example.aitraining.dto.ApiDtos.*;
+import com.example.aitraining.dto.CommonDtos.*;
+import com.example.aitraining.dto.UserDtos.*;
+import com.example.aitraining.dto.ProjectDtos.*;
+import com.example.aitraining.dto.JobDtos.*;
+import com.example.aitraining.dto.SupportDtos.*;
 import com.example.aitraining.repo.ConfigRepository;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;

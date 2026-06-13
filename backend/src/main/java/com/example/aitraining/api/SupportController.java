@@ -2,7 +2,11 @@ package com.example.aitraining.api;
 
 import com.example.aitraining.auth.CurrentUserContext;
 import com.example.aitraining.domain.Enums.NotificationStatus;
-import com.example.aitraining.dto.ApiDtos.*;
+import com.example.aitraining.dto.CommonDtos.*;
+import com.example.aitraining.dto.UserDtos.*;
+import com.example.aitraining.dto.ProjectDtos.*;
+import com.example.aitraining.dto.JobDtos.*;
+import com.example.aitraining.dto.SupportDtos.*;
 import com.example.aitraining.repo.JobRepository;
 import com.example.aitraining.repo.SupportRepository;
 import com.example.aitraining.service.AuthorizationService;

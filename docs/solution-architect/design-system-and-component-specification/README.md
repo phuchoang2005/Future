@@ -31,7 +31,7 @@ The design system is optimized for operational workflows: project discovery, con
 
 ## 4. Design Tokens
 
-Design tokens should be implemented through TailwindCSS theme configuration, shadcn/ui CSS variables, and shared tokens in `src/assets/styles/tailwind.css`.
+Design tokens are implemented through TailwindCSS v4 theme variables, shadcn/ui CSS variables, and shared tokens in `src/assets/styles/tailwind.css`.
 
 ### Color Tokens
 
@@ -62,7 +62,7 @@ The frontend must support light and dark mode using system preference by default
 | Concern | Requirement |
 | --- | --- |
 | Source of truth | Use `prefers-color-scheme` on first load and store the resolved mode in Redux `theme` state. |
-| Tailwind mode | Configure Tailwind dark variants through a root `.dark` class or equivalent selector. |
+| Tailwind mode | Configure Tailwind dark variants and theme tokens through `src/assets/styles/tailwind.css` and a root `.dark` class or equivalent selector. |
 | Initial paint | Apply the resolved theme class before React renders to avoid flash of incorrect theme. |
 | System changes | Listen for `prefers-color-scheme` changes and update the root theme class when no manual override exists. |
 | shadcn/ui | Keep shadcn/ui CSS variables mapped for both light and dark themes. |
