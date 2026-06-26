@@ -83,8 +83,11 @@ if (Validation successful?) then (yes)
       else (ZIP)
         :Use validated extracted ZIP source;
       endif
-      :Build or prepare Docker image;
-      :Run container training-job-{jobId};
+      if (Image project-{projectId} exists?) then (yes)
+      else (no)
+        :Build project image on-demand from source\n(stream build log; fail job if build fails);
+      endif
+      :Run container training-job-{jobId}\n(labelled ai-training.project={projectId};\ndependencies baked into the image);
       :Execute training entrypoint main.py;
     }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Play } from "lucide-react";
+import { Play, Trash2 } from "lucide-react";
 import { StatusBadge } from "../../shared/components/Badges";
 import { Dialog } from "../../shared/components/Dialog";
 import { Banner, KeyValue } from "../../shared/components/Feedback";
@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../shared/ui/tabs";
 import { actions } from "../../store/store";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { ErrorPage } from "../ErrorPage";
-import { ConfigEditor } from "./ConfigEditor";
+import { ConfigEditor, DEFAULT_CONFIG_YAML } from "./ConfigEditor";
 import { TrainingHistory } from "./TrainingHistory";
 import type { ProjectDetail } from "../../shared/api/types";
 
@@ -22,11 +22,13 @@ export function ProjectDetailPage({ initialTab = "overview" }: { initialTab?: "o
   const jobs = useAppSelector((state) => state.jobs.jobsByProjectId[projectId ?? ""] ?? []);
   const error = useAppSelector((state) => state.projects.error);
   const [tab, setTab] = useState(initialTab);
-  const [yaml, setYaml] = useState("");
+  const [yaml, setYaml] = useState(DEFAULT_CONFIG_YAML);
   const [validation, setValidation] = useState<"idle" | "valid" | "invalid">("idle");
   const [startOpen, setStartOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!projectId) return;
@@ -67,6 +69,17 @@ export function ProjectDetailPage({ initialTab = "overview" }: { initialTab?: "o
     }
   };
 
+  const deleteProject = async () => {
+    setDeleting(true);
+    try {
+      await dispatch(actions.deleteProjectAsync(project.projectId)).unwrap();
+      navigate("/projects");
+    } catch {
+      setDeleting(false);
+      setDeleteOpen(false);
+    }
+  };
+
   const startTraining = async () => {
     if (!config) return;
     setStarting(true);
@@ -85,9 +98,14 @@ export function ProjectDetailPage({ initialTab = "overview" }: { initialTab?: "o
         title={project.projectName}
         subtitle={project.description}
         action={
-          <button className="button primary" onClick={() => setStartOpen(true)} disabled={starting || !config}>
-            <Play size={17} /> {starting ? "Starting…" : "Start Training"}
-          </button>
+          <>
+            <button className="button danger" onClick={() => setDeleteOpen(true)} disabled={deleting}>
+              <Trash2 size={17} /> {deleting ? "Deleting…" : "Delete"}
+            </button>
+            <button className="button primary" onClick={() => setStartOpen(true)} disabled={starting || !config}>
+              <Play size={17} /> {starting ? "Starting…" : "Start Training"}
+            </button>
+          </>
         }
       />
       {!config && <Banner tone="warning">No configuration found for this project.</Banner>}
@@ -114,6 +132,9 @@ export function ProjectDetailPage({ initialTab = "overview" }: { initialTab?: "o
       {startOpen && (
         <StartDialog yaml={yaml} onClose={() => setStartOpen(false)} onStart={startTraining} />
       )}
+      {deleteOpen && (
+        <DeleteDialog projectName={project.projectName} onClose={() => setDeleteOpen(false)} onDelete={deleteProject} />
+      )}
     </Page>
   );
 }
@@ -128,6 +149,21 @@ function ProjectSummaryPanel({ project }: { project: ProjectDetail }) {
       <KeyValue label="Owner" value={project.owner.email} />
       <KeyValue label="Latest status" value={project.latestJobStatus ? <StatusBadge status={project.latestJobStatus} /> : "No jobs yet"} />
     </section>
+  );
+}
+
+function DeleteDialog({ projectName, onClose, onDelete }: { projectName: string; onClose: () => void; onDelete: () => void }) {
+  return (
+    <Dialog title="Delete Project" onClose={onClose}>
+      <p>
+        Permanently delete <strong>{projectName}</strong> and all associated data — its Docker image,
+        job containers, configurations, and on-disk source. This action cannot be undone.
+      </p>
+      <div className="dialog-actions">
+        <button className="button secondary" onClick={onClose}>Cancel</button>
+        <button className="button danger" onClick={onDelete}><Trash2 size={17} /> Delete Project</button>
+      </div>
+    </Dialog>
   );
 }
 

@@ -76,22 +76,36 @@ partition "Project Service" {
 }
 
 if (Required project files exist?) then (yes)
-  partition "Config Service" {
-    :Discover YAML files under configs/;
-    :Register project config metadata;
+  partition "Image Build Service" {
+    :Generate Dockerfile FROM base image\n(bake requirements.txt / pyproject.toml deps);
+    :docker build -t project-{projectId}\n(synchronous, capture build log);
   }
 
-  partition "PostgreSQL" {
-    :Persist projects;
-    :Persist project_configs;
-    :Persist audit_logs PROJECT_REGISTERED;
-  }
+  if (Image build succeeded?) then (yes)
+    partition "Config Service" {
+      :Discover YAML files under configs/;
+      :Register project config metadata;
+    }
 
-  partition "React Frontend" {
-    :Navigate to Project Detail page;
-    :Show project ready for training;
-  }
-  stop
+    partition "MongoDB" {
+      :Persist projects;
+      :Persist project_configs;
+      :Persist audit_logs PROJECT_CREATED;
+    }
+
+    partition "React Frontend" {
+      :Show build log;
+      :Navigate to Project Detail page;
+      :Show project ready for training;
+    }
+    stop
+  else (no)
+    partition "Spring Boot API" {
+      :Delete project and cloned/extracted source;
+      :Return 400 with build log;
+    }
+    stop
+  endif
 else (no)
   partition "Spring Boot API" {
     :Reject registration;

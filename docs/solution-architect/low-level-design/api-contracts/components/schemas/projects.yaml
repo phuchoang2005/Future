@@ -77,6 +77,12 @@ CreateProjectResponse:
     createdAt:
       type: string
       format: date-time
+    buildLog:
+      type: string
+      description: >-
+        Combined `docker build` output from baking the per-project image at registration.
+        Returned so the client can display the build. On build failure the project is not
+        created and the build log is returned in the error response message (HTTP 400).
 ProjectDetail:
   allOf:
     - $ref: "#/ProjectSummary"

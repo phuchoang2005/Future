@@ -10,6 +10,7 @@ import com.example.aitraining.repo.JobRepository;
 import com.example.aitraining.repo.SupportRepository;
 import com.example.aitraining.repo.UserRepository;
 import com.example.aitraining.service.ArtifactService;
+import com.example.aitraining.service.ImageBuildService;
 import com.example.aitraining.service.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,13 +52,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class DockerTrainingRunner extends AbstractTrainingRunner {
   private static final Logger log = LoggerFactory.getLogger(DockerTrainingRunner.class);
 
+  private final ImageBuildService imageBuilder;
+
   /**
    * Wires all shared infrastructure into the abstract base class.
    */
   public DockerTrainingRunner(JobRepository jobs, JobQueueRepository queue, ConfigRepository configs,
       SupportRepository support, UserRepository users, ArtifactService artifacts,
-      NotificationService notifications, JobStreamWebSocketHandler ws, AppProperties props) {
+      NotificationService notifications, JobStreamWebSocketHandler ws, ImageBuildService imageBuilder,
+      AppProperties props) {
     super(jobs, queue, configs, support, users, artifacts, notifications, ws, props);
+    this.imageBuilder = imageBuilder;
   }
 
   /**
@@ -83,13 +88,16 @@ public class DockerTrainingRunner extends AbstractTrainingRunner {
   @Override
   protected boolean execute(TrainingJob job, Path workspace, Path sourcePath, String entrypoint)
       throws IOException, InterruptedException {
-    List<String> cmd = buildDockerCommand(job.jobId(), workspace, sourcePath, entrypoint);
+    AtomicInteger seqNo = new AtomicInteger(0);
+
+    boolean hasSource = sourcePath != null && Files.exists(sourcePath);
+    String image = ensureImage(job, hasSource ? sourcePath : null, seqNo);
+    List<String> cmd = assembleRunCommand(image, job.projectId(), job.jobId(), workspace,
+        hasSource ? sourcePath : null, entrypoint);
     log.info("Starting Docker container for job {}: {}", job.jobId(), String.join(" ", cmd));
 
     ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(false);
     Process process = pb.start();
-
-    AtomicInteger seqNo = new AtomicInteger(0);
 
     Thread stdoutThread = Thread.ofVirtual().start(() ->
         streamLines(process.inputReader(), job.jobId(), StreamType.STDOUT, seqNo));
@@ -120,23 +128,79 @@ public class DockerTrainingRunner extends AbstractTrainingRunner {
   }
 
   /**
-   * Assembles the {@code docker run} argument list.
+   * Pure assembly of the {@code docker run} argument list (no I/O), extracted so the mount and
+   * entrypoint wiring can be unit-tested without Docker.
    *
-   * <p>If {@code sourcePath} is present and exists on disk it is mounted read-only as
-   * {@code /source} and the entrypoint is prefixed with {@code cd /source &&}.
+   * <p>The job's per-job workspace is always mounted read/write at {@code /workspace}. When
+   * {@code sourcePath} is non-null it is mounted read-only at {@code /source} and the entrypoint is
+   * prefixed with {@code cd /source &&}; otherwise the entrypoint runs as-is. The container carries
+   * the project label so it can be cleaned up when the project is deleted.
    */
-  private List<String> buildDockerCommand(UUID jobId, Path workspace, Path sourcePath, String entrypoint) {
+  static List<String> assembleRunCommand(String image, UUID projectId, UUID jobId, Path workspace,
+      Path sourcePath, String entrypoint) {
     List<String> cmd = new ArrayList<>(List.of(
         "docker", "run", "--rm",
         "--name", "job-" + jobId,
+        "--label", ImageBuildService.projectLabel(projectId),
         "-v", workspace.toAbsolutePath() + ":/workspace"));
 
-    if (sourcePath != null && Files.exists(sourcePath)) {
+    if (sourcePath != null) {
       cmd.addAll(List.of("-v", sourcePath.toAbsolutePath() + ":/source:ro"));
-      cmd.addAll(List.of(props.docker().image(), "sh", "-c", "cd /source && " + entrypoint));
+      cmd.addAll(List.of(image, "sh", "-c", "cd /source && " + entrypoint));
     } else {
-      cmd.addAll(List.of(props.docker().image(), "sh", "-c", entrypoint));
+      cmd.addAll(List.of(image, "sh", "-c", entrypoint));
     }
     return cmd;
+  }
+
+  /**
+   * Resolves the image to run the job on, building the per-project image on demand if it is missing.
+   *
+   * <p>Each project trains on {@code project-&#123;projectId&#125;}, normally built at registration. If that
+   * image is absent — e.g. a project created before per-project builds existed, or whose image was
+   * pruned — it is built now (one time) from the project source and the build log is streamed to the
+   * job. Running the dependency-less base image instead would resurface {@code ModuleNotFoundError},
+   * so a failed build fails the job rather than silently falling back.
+   *
+   * @return the image tag to run on
+   * @throws IOException if the project image is missing and cannot be built
+   */
+  private String ensureImage(TrainingJob job, Path sourcePath, AtomicInteger seqNo) throws IOException {
+    String tag = ImageBuildService.imageTag(job.projectId());
+    if (imageExists(tag)) {
+      return tag;
+    }
+    if (sourcePath == null) {
+      logLine(job.jobId(), StreamType.STDERR,
+          ">>> [image] no project image and no source available — using base image " + props.docker().image(),
+          seqNo.incrementAndGet());
+      return props.docker().image();
+    }
+
+    logLine(job.jobId(), StreamType.STDOUT,
+        ">>> [image] project image " + tag + " not found — building it now (one-time)…", seqNo.incrementAndGet());
+    ImageBuildService.BuildResult result = imageBuilder.build(job.projectId(), sourcePath);
+    for (String line : result.log().split("\\R")) {
+      logLine(job.jobId(), result.success() ? StreamType.STDOUT : StreamType.STDERR, line, seqNo.incrementAndGet());
+    }
+    if (!result.success()) {
+      throw new IOException("Failed to build project image " + tag + " before training");
+    }
+    return tag;
+  }
+
+  /** Returns {@code true} if a local image with the given tag exists ({@code docker image inspect}). */
+  private boolean imageExists(String tag) {
+    try {
+      Process p = new ProcessBuilder("docker", "image", "inspect", tag).redirectErrorStream(true).start();
+      p.getInputStream().readAllBytes();
+      return p.waitFor() == 0;
+    } catch (IOException | InterruptedException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      log.warn("Could not inspect image {}: {}", tag, e.getMessage());
+      return false;
+    }
   }
 }

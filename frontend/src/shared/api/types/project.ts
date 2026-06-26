@@ -29,6 +29,11 @@ export type ProjectDetail = ProjectSummary & {
   owner: UserSummary;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Combined `docker build` log from baking the per-project image at registration.
+   * Only present on the immediate create response — not persisted or returned by GET.
+   */
+  buildLog?: string;
 };
 
 /**

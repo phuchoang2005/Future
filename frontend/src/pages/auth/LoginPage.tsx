@@ -23,7 +23,6 @@ export function LoginPage() {
     <AuthPage>
       <section className="login-card auth-card">
         <Brand /><div><h1>Welcome Home</h1><p>Sign in with a development account while company SSO/OIDC is not configured.</p></div>
-        <Banner tone="warning">Development only. Production authentication remains company SSO/OIDC.</Banner>
         <FormGrid><TextField label="Email" value={email} onChange={setEmail} /><label className="field"><span>Password</span><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label></FormGrid>
         {error && <Banner tone="danger">{error}</Banner>}
         <button className="button primary full-width" onClick={() => dispatch(actions.login({ email, password }))}>Sign In</button>

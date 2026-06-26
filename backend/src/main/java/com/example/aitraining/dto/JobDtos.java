@@ -73,8 +73,18 @@ public final class JobDtos {
   public record RetryJobRequest(String mode, String yamlContent) {
   }
 
-  /** Response from a successful retry; the new job is in {@code QUEUED} state. */
-  public record RetryJobResponse(UUID originalJobId, UUID retryJobId, JobStatus status, Integer queuePosition) {
+  /**
+   * Response from a successful retry; the new job is in {@code QUEUED} state.
+   *
+   * <p>Field names match the canonical OpenAPI contract ({@code RetryJobResponse}): {@code jobId}
+   * is the <em>new</em> retry job, {@code retryOfJobId} points back to the original.
+   *
+   * @param jobId        id of the newly queued retry job
+   * @param retryOfJobId id of the original job this retry was created from
+   * @param status       status of the new job (typically {@code QUEUED})
+   * @param retryAttempt attempt counter of the new job (original's + 1)
+   */
+  public record RetryJobResponse(UUID jobId, UUID retryOfJobId, JobStatus status, int retryAttempt) {
   }
 
   /**

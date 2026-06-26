@@ -22,8 +22,8 @@ import java.util.UUID;
  *   <li>{@code POST /projects/upload-zip} — create a ZIP-source project via multipart upload
  *       ({@code metadata} part: JSON, {@code file} part: ZIP archive).</li>
  *   <li>{@code GET  /projects/{projectId}} — get project detail; visible to owner and admin.</li>
- *   <li>{@code DELETE /projects/{projectId}} — delete project and all associated data;
- *       admin may delete any, owner only for own.</li>
+ *   <li>{@code DELETE /projects/{projectId}} — delete project and all associated data, including
+ *       its Docker image, job containers, and on-disk source; admin may delete any, owner only for own.</li>
  * </ul>
  */
 @RestController

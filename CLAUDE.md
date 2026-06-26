@@ -179,3 +179,15 @@ rtk proxy <command>             # Raw passthrough + tracking
 ```bash
 rtk mvn *
 ```
+
+If you need to run the docker command but it fails. You should run the command to start colima
+
+```bash
+colima start
+```
+
+And when stop the docker you should stop colima list-roles
+
+```bash
+colima stop
+```

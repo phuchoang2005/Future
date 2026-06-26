@@ -35,15 +35,16 @@ public class ConfigRepository {
     this.mongo = mongo;
   }
 
+  public static final String DEFAULT_HYPERPARAMETER_YAML =
+      "dataset:\n  version: 1\ntraining:\n  epochs: 10\n  batch_size: 32\n  learning_rate: 0.001\nruntime:\n  accelerator: gpu\n  checkpoint_every: 5\n";
+
   /**
-   * Creates the default config for a new project.
-   * The YAML is seeded with the project's training entrypoint so at least one runnable config
-   * always exists before the user edits anything.
+   * Creates the default config for a new project seeded with standard hyperparameter sections
+   * (dataset, training, runtime) so the frontend config editor can parse and display the fields.
    */
-  public ProjectConfig createDefault(UUID projectId, String entrypoint) {
-    String yaml = "trainingEntrypoint: " + entrypoint + "\n";
+  public ProjectConfig createDefault(UUID projectId) {
     ProjectConfig config = new ProjectConfig(UUID.randomUUID(), projectId, "default", "configs/default.yaml",
-        yaml, true, Instant.now());
+        DEFAULT_HYPERPARAMETER_YAML, true, Instant.now());
     return mongo.insert(config);
   }
 

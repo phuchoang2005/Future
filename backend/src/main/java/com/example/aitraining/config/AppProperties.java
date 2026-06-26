@@ -26,12 +26,16 @@ public record AppProperties(String storageRoot, Queue queue, Docker docker, Noti
   public record Queue(int runningLimit) {}
 
   /**
-   * @param image          Docker image used for every training container
-   * @param workspaceRoot  directory where per-job workspaces are created; must be writable
-   * @param sourcesRoot    directory where cloned Git repositories are cached
-   * @param minDiskBytes   minimum free disk space required before launching a container (bytes)
+   * @param image               base image projects are built {@code FROM}; also the fallback image
+   *                            for jobs whose project image is missing
+   * @param workspaceRoot       directory where per-job workspaces are created; must be writable
+   * @param sourcesRoot         directory where cloned Git repositories are cached
+   * @param minDiskBytes        minimum free disk space required before launching a container (bytes)
+   * @param buildTimeoutSeconds maximum time a per-project {@code docker build} may run at
+   *                            registration before it is aborted and registration fails
    */
-  public record Docker(String image, String workspaceRoot, String sourcesRoot, long minDiskBytes) {}
+  public record Docker(String image, String workspaceRoot, String sourcesRoot, long minDiskBytes,
+      long buildTimeoutSeconds) {}
 
   /**
    * @param enabled  {@code false} to disable all notifications globally (e.g. local dev)

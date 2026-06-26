@@ -23,7 +23,6 @@ export function RegisterAccountPage() {
     <AuthPage>
       <section className="login-card auth-card">
         <Brand /><div><h1>Register Account</h1><p>Create a local development session for onboarding flow validation.</p></div>
-        <Banner tone="warning">This registration is frontend-local until a backend account endpoint is introduced.</Banner>
         <FormGrid><TextField label="Full name" value={fullName} onChange={setFullName} /><TextField label="Email" value={email} onChange={setEmail} /><label className="field"><span>Password</span><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label><div className="segmented large"><button className={role === "USER" ? "active" : ""} onClick={() => setRole("USER")}>User</button><button className={role === "ADMIN" ? "active" : ""} onClick={() => setRole("ADMIN")}>Admin</button></div></FormGrid>
         {error && <Banner tone="danger">{error}</Banner>}
         <button className="button primary full-width" disabled={!valid} onClick={() => dispatch(actions.registerAccount({ fullName, email, password, role }))}>Create Account</button>

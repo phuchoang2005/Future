@@ -37,9 +37,14 @@ public final class ProjectDtos {
       @NotBlank String trainingEntrypoint) {
   }
 
-  /** Response from a successful project creation of either source type. */
+  /**
+   * Response from a successful project creation of either source type.
+   *
+   * @param buildLog combined {@code docker build} output from baking the per-project image at
+   *                 registration; surfaced to the UI so users can inspect the build.
+   */
   public record CreateProjectResponse(UUID projectId, String projectName, SourceType sourceType, String status,
-      Instant createdAt) {
+      Instant createdAt, String buildLog) {
   }
 
   /**

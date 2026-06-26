@@ -20,11 +20,18 @@ export const projectService = {
     apiClient.get<ProjectDetail>(`/projects/${projectId}`).then((r) => r.data),
 
   /**
+   * Permanently deletes a project and all associated data (Docker image, job containers,
+   * on-disk source). Owner may delete their own; ADMIN may delete any. Returns 204 No Content.
+   */
+  delete: (projectId: string) =>
+    apiClient.delete<void>(`/projects/${projectId}`).then((r) => r.data),
+
+  /**
    * Registers a public GitHub repository as a project.
    * Returns only the generated `projectId`; call `get()` to fetch the full record.
    */
   createGithub: (body: { projectName: string; description?: string; repositoryUrl: string; trainingEntrypoint: string }) =>
-    apiClient.post<{ projectId: string }>("/projects", body).then((r) => r.data),
+    apiClient.post<{ projectId: string; buildLog?: string }>("/projects", body).then((r) => r.data),
 
   /**
    * Lists config summaries for a project.
@@ -47,6 +54,18 @@ export const projectService = {
    */
   saveConfig: (projectId: string, configId: string, yamlContent: string) =>
     apiClient.put<ProjectConfigContent>(`/projects/${projectId}/configs/${configId}`, { yamlContent }).then((r) => r.data),
+
+  /**
+   * Uploads a ZIP archive and registers it as a new project.
+   * Sends multipart/form-data with a JSON `metadata` part and the `file` part.
+   * Returns only the generated `projectId`; call `get()` to fetch the full record.
+   */
+  createZip: (body: { projectName: string; description?: string; trainingEntrypoint: string }, file: File) => {
+    const form = new FormData();
+    form.append("metadata", new Blob([JSON.stringify(body)], { type: "application/json" }));
+    form.append("file", file);
+    return apiClient.post<{ projectId: string; buildLog?: string }>("/projects/upload-zip", form).then((r) => r.data);
+  },
 
   /**
    * Server-side YAML validation.

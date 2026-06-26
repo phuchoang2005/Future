@@ -1,5 +1,6 @@
 .icon-button { width: 44px; padding: 0; position: relative; }
 .full-width { width: 100%; }
+.button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 16px; border: 1px solid var(--border); border-radius: 6px; font-weight: 600; cursor: pointer; background: var(--card); color: var(--foreground); text-decoration: none; }
 .button.primary { border-color: transparent; color: white; background: linear-gradient(135deg, #0ea5e9, #2563eb); }
 .button.secondary { background: var(--muted); }
 .button.ghost { background: transparent; }
@@ -26,3 +27,15 @@
 .failed { color: var(--destructive); }
 .cancelled, .neutral { color: var(--disabled); }
 .status-dot { width: 8px; height: 8px; border-radius: 999px; display: inline-block; background: currentColor; }
+
+.hyperparam-form { display: grid; gap: 20px; }
+.hyperparam-section { display: grid; gap: 10px; }
+.hyperparam-section-title { margin: 0; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-foreground); }
+.hyperparam-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+
+.file-drop { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 120px; border: 2px dashed var(--border); border-radius: 8px; background: var(--muted); color: var(--muted-foreground); cursor: pointer; padding: 20px; text-align: center; transition: border-color 0.15s, background 0.15s; }
+.file-drop:hover, .file-drop--over { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 6%, var(--muted)); color: var(--foreground); }
+.file-drop--filled { cursor: default; border-style: solid; border-color: var(--success, #22c55e); background: color-mix(in srgb, var(--success, #22c55e) 8%, var(--muted)); }
+.file-drop--filled .file-drop__name { font-weight: 600; color: var(--foreground); word-break: break-all; }
+.file-drop__clear { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); cursor: pointer; color: var(--muted-foreground); }
+.file-drop__clear:hover { color: var(--destructive); border-color: var(--destructive); }

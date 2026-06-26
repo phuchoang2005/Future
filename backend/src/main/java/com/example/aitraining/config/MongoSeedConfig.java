@@ -3,6 +3,7 @@ package com.example.aitraining.config;
 import com.example.aitraining.domain.Enums.UserRole;
 import com.example.aitraining.domain.Enums.UserStatus;
 import com.example.aitraining.domain.Models.User;
+import com.example.aitraining.repo.ConfigRepository;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,6 +12,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -60,6 +62,29 @@ public class MongoSeedConfig {
 
       seedUser(mongo, "00000000-0000-0000-0000-000000000101", "user@example.com", "Development User", UserRole.USER);
       seedUser(mongo, "00000000-0000-0000-0000-000000000201", "admin@example.com", "Development Admin", UserRole.ADMIN);
+
+      // Migrate any project_configs YAML that contains a trainingEntrypoint key — that key is
+      // now a project-level concern, not a per-config concern. Replace the whole YAML with the
+      // standard hyperparameter template so the config editor can render it correctly.
+      mongo.updateMulti(
+          Query.query(Criteria.where("yamlContent").regex("trainingEntrypoint:")),
+          Update.update("yamlContent", ConfigRepository.DEFAULT_HYPERPARAMETER_YAML),
+          "project_configs");
+
+      // Migrate config_snapshots that still carry a trainingEntrypoint key — these belong to
+      // WAITING jobs that haven't been dispatched yet. Replace their YAML with the default so
+      // parseEntrypoint falls through to the project-level field (which is fixed below).
+      mongo.updateMulti(
+          Query.query(Criteria.where("yamlContent").regex("trainingEntrypoint:")),
+          Update.update("yamlContent", ConfigRepository.DEFAULT_HYPERPARAMETER_YAML),
+          "config_snapshots");
+
+      // Migrate any project whose trainingEntrypoint still points at train.py (any variant).
+      // README-PYTHON.md mandates python main.py as the only valid entrypoint.
+      mongo.updateMulti(
+          Query.query(Criteria.where("trainingEntrypoint").regex("train\\.py")),
+          Update.update("trainingEntrypoint", "python main.py"),
+          "projects");
     };
   }
 

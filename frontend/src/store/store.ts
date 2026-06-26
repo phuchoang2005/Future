@@ -8,8 +8,8 @@ import {
 } from "./slices/jobSlice";
 import {
   projectSlice,
-  fetchProjects, fetchProjectById, createProjectAsync,
-  fetchProjectConfig, saveConfigAsync, validateConfigAsync,
+  fetchProjects, fetchProjectById, createProjectAsync, createZipProjectAsync,
+  fetchProjectConfig, saveConfigAsync, validateConfigAsync, deleteProjectAsync,
 } from "./slices/projectSlice";
 import {
   adminSlice, notificationSlice, themeSlice,
@@ -46,9 +46,11 @@ export const actions = {
   fetchProjects,
   fetchProjectById,
   createProjectAsync,
+  createZipProjectAsync,
   fetchProjectConfig,
   saveConfigAsync,
   validateConfigAsync,
+  deleteProjectAsync,
   fetchJobsByProject,
   fetchJobById,
   startJobAsync,

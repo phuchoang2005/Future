@@ -127,7 +127,7 @@ public class JobService {
     TrainingJob queued = jobs.get(retry.jobId());
     support.audit(user.userId(), project.projectId(), retry.jobId(), "JOB_RETRIED", "TRAINING_JOB",
         retry.jobId().toString());
-    return new RetryJobResponse(original.jobId(), queued.jobId(), queued.status(), queued.queuePosition());
+    return new RetryJobResponse(queued.jobId(), original.jobId(), queued.status(), queued.retryAttempt());
   }
 
   public QueueSnapshot queueSnapshot() {

@@ -25,8 +25,24 @@ export const createProjectAsync = createAsyncThunk(
   "projects/create",
   async (body: { projectName: string; description?: string; sourceType: "GITHUB" | "ZIP"; repositoryUrl?: string; trainingEntrypoint: string }) => {
     const { repositoryUrl, trainingEntrypoint, projectName, description } = body;
-    const { projectId } = await projectService.createGithub({ projectName, description, repositoryUrl: repositoryUrl!, trainingEntrypoint });
-    return projectService.get(projectId);
+    const { projectId, buildLog } = await projectService.createGithub({ projectName, description, repositoryUrl: repositoryUrl!, trainingEntrypoint });
+    const detail = await projectService.get(projectId);
+    return { ...detail, buildLog };
+  },
+);
+
+/**
+ * Uploads a ZIP archive and registers it as a new project.
+ * Makes two sequential API calls: POST /projects/upload-zip (creates, returns projectId)
+ * then GET /projects/{id} (fetches full detail) so the return value is a usable `ProjectDetail`.
+ */
+export const createZipProjectAsync = createAsyncThunk(
+  "projects/createZip",
+  async (body: { projectName: string; description?: string; trainingEntrypoint: string; file: File }) => {
+    const { file, ...metadata } = body;
+    const { projectId, buildLog } = await projectService.createZip(metadata, file);
+    const detail = await projectService.get(projectId);
+    return { ...detail, buildLog };
   },
 );
 
@@ -54,6 +70,18 @@ export const saveConfigAsync = createAsyncThunk(
   async ({ projectId, configId, yamlContent }: { projectId: string; configId: string; yamlContent: string }) => {
     const config = await projectService.saveConfig(projectId, configId, yamlContent);
     return { projectId, config };
+  },
+);
+
+/**
+ * Permanently deletes a project and all associated data, then removes it from
+ * `state.items`, `state.detailByProjectId`, and `state.configsByProjectId`.
+ */
+export const deleteProjectAsync = createAsyncThunk(
+  "projects/delete",
+  async (projectId: string) => {
+    await projectService.delete(projectId);
+    return projectId;
   },
 );
 
@@ -114,12 +142,24 @@ export const projectSlice = createSlice({
         state.items.unshift(action.payload);
       })
 
+      .addCase(createZipProjectAsync.fulfilled, (state, action) => {
+        state.detailByProjectId[action.payload.projectId] = action.payload;
+        state.items.unshift(action.payload);
+      })
+
       .addCase(fetchProjectConfig.fulfilled, (state, action) => {
         state.configsByProjectId[action.payload.projectId] = action.payload.config;
       })
 
       .addCase(saveConfigAsync.fulfilled, (state, action) => {
         state.configsByProjectId[action.payload.projectId] = action.payload.config;
+      })
+
+      .addCase(deleteProjectAsync.fulfilled, (state, action) => {
+        const projectId = action.payload;
+        state.items = state.items.filter((p) => p.projectId !== projectId);
+        delete state.detailByProjectId[projectId];
+        delete state.configsByProjectId[projectId];
       });
   },
 });

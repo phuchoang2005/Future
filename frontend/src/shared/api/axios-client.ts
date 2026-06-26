@@ -28,9 +28,6 @@ export type ApiError = {
 export const apiClient = axios.create({
   baseURL: "/api/v1",
   withCredentials: true,
-  headers: {
-    "Content-Type": "application/json",
-  },
 });
 
 apiClient.interceptors.request.use((config) => {

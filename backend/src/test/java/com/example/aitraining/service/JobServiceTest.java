@@ -97,9 +97,10 @@ class JobServiceTest {
     when(jobRepository.get(newJobId)).thenReturn(retryJob);
 
     var response = service.retry(owner, project, failed, new RetryJobRequest("SAME_CONFIG", null));
-    assertThat(response.originalJobId()).isEqualTo(jobId);
-    assertThat(response.retryJobId()).isEqualTo(newJobId);
+    assertThat(response.retryOfJobId()).isEqualTo(jobId);
+    assertThat(response.jobId()).isEqualTo(newJobId);
     assertThat(response.status()).isEqualTo(JobStatus.QUEUED);
+    assertThat(response.retryAttempt()).isEqualTo(1);
   }
 
   private TrainingJob buildJob(JobStatus status) {

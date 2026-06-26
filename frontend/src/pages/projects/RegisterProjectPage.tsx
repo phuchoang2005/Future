@@ -14,18 +14,28 @@ export function RegisterProjectPage() {
   const [projectName, setProjectName] = useState("");
   const [description, setDescription] = useState("");
   const [repositoryUrl, setRepositoryUrl] = useState("");
-  const [trainingEntrypoint, setTrainingEntrypoint] = useState("python train.py --config training.yaml");
+  const [trainingEntrypoint, setTrainingEntrypoint] = useState("python main.py");
+  const [zipFile, setZipFile] = useState<File | undefined>();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
-  const valid = projectName.trim() && trainingEntrypoint.trim() && (sourceType === "ZIP" || repositoryUrl.startsWith("https://"));
+  const [created, setCreated] = useState<{ projectId: string; buildLog?: string } | undefined>();
+  const valid = projectName.trim() && trainingEntrypoint.trim() && (sourceType === "GITHUB" ? repositoryUrl.startsWith("https://") : !!zipFile);
 
   const submit = async () => {
     setSubmitting(true);
     setError(undefined);
     try {
-      const result = await dispatch(actions.createProjectAsync({ projectName, description, sourceType, repositoryUrl, trainingEntrypoint })).unwrap();
-      navigate(`/projects/${result.projectId}`);
+      let result;
+      if (sourceType === "ZIP") {
+        result = await dispatch(actions.createZipProjectAsync({ projectName, description, trainingEntrypoint, file: zipFile! })).unwrap();
+      } else {
+        result = await dispatch(actions.createProjectAsync({ projectName, description, sourceType, repositoryUrl, trainingEntrypoint })).unwrap();
+      }
+      // Show the docker build log before navigating so the user can confirm the image built.
+      setCreated({ projectId: result.projectId, buildLog: result.buildLog });
+      setSubmitting(false);
     } catch (err: unknown) {
+      // On build failure the backend returns the build log in the error message.
       setError((err as { message?: string })?.message ?? "Failed to register project. Please try again.");
       setSubmitting(false);
     }
@@ -42,14 +52,33 @@ export function RegisterProjectPage() {
         <FormGrid>
           <TextField label="Project name" value={projectName} onChange={setProjectName} />
           <TextField label="Description" value={description} onChange={setDescription} />
-          {sourceType === "GITHUB" ? <TextField label="Repository URL" value={repositoryUrl} onChange={setRepositoryUrl} placeholder="https://github.com/company/model" /> : <FileDrop />}
+          {sourceType === "GITHUB"
+            ? <TextField label="Repository URL" value={repositoryUrl} onChange={setRepositoryUrl} placeholder="https://github.com/company/model" />
+            : <FileDrop file={zipFile} onChange={setZipFile} />}
           <TextField label="Training entrypoint" value={trainingEntrypoint} onChange={setTrainingEntrypoint} />
         </FormGrid>
-        {error && <Banner tone="danger">{error}</Banner>}
+        {error && (
+          <Banner tone="danger">
+            <strong>Image build failed — project not created.</strong>
+            <pre className="build-log">{error}</pre>
+          </Banner>
+        )}
+        {created && (
+          <Banner tone="success">
+            <strong>Project created and image built.</strong>
+            {created.buildLog && <pre className="build-log">{created.buildLog}</pre>}
+          </Banner>
+        )}
         <div className="form-actions">
-          <button className="button primary" disabled={!valid || submitting} onClick={submit}>
-            <Plus size={17} /> {submitting ? "Creating…" : "Create Project"}
-          </button>
+          {created ? (
+            <button className="button primary" onClick={() => navigate(`/projects/${created.projectId}`)}>
+              Go to project
+            </button>
+          ) : (
+            <button className="button primary" disabled={!valid || submitting} onClick={submit}>
+              <Plus size={17} /> {submitting ? "Building image…" : "Create Project"}
+            </button>
+          )}
         </div>
       </section>
     </Page>

@@ -34,6 +34,7 @@ app:
     workspace-root: ${APP_DOCKER_WORKSPACE_ROOT:./workspaces}
     sources-root: ${APP_DOCKER_SOURCES_ROOT:./sources}
     min-disk-bytes: ${APP_DOCKER_MIN_DISK_BYTES:5368709120}
+    build-timeout-seconds: ${APP_DOCKER_BUILD_TIMEOUT_SECONDS:600}
   notification:
     enabled: ${APP_NOTIFICATION_ENABLED:false}
     from: ${APP_NOTIFICATION_FROM:noreply@localhost}
