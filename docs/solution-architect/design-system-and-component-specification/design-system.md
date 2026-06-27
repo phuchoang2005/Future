@@ -38,8 +38,8 @@ The design system is optimized for operational workflows: project discovery, con
 | Project Registration | Register GitHub or ZIP project source. | Form field, file upload, validation message, action button, progress indicator. |
 | Project Detail | Review source, dataset, configuration, and training history. | Page header, summary panel, tabs, YAML editor, data table, start training dialog. |
 | Job Detail | Monitor job status, logs, progress, artifacts, cancel, and retry. | Status panel, progress indicator, log viewer, connection banner, action toolbar, artifact list. |
-| Notifications | Review job outcome notifications and delivery failures. | Notification list, badge, status marker, timestamp, mark-read action. |
-| Admin Console | Manage users and queue visibility without exposing sensitive project data. | Admin table, queue snapshot, status badge, confirmation dialog. |
+| Notifications | Review live training activity — queued, running, progress milestones, and job outcomes — generated from job events. | Notification list, badge, status marker, timestamp, mark-read action, mark-all-read action, empty state. |
+| Admin Console | Manage users and queue visibility (including cancelling any job) without exposing sensitive project data. | Admin table, queue snapshot with cancel action, status badge, confirmation dialog. |
 
 ## 4. Design Tokens
 
@@ -272,9 +272,9 @@ Use plain CSS keyframe animations for frontend motion. Motion should make transi
 | `DataTable` | Dense tabular data. | Sort, loading rows, empty state, responsive stacked rows. |
 | `ProjectTable` | Project dashboard list. | Project name, description, latest status, last training time, owner. |
 | `TrainingHistoryTable` | Project job history. | Job ID, owner, status, started, ended, duration, open job action. |
-| `QueueSnapshot` | Admin queue status. | Running count, running limit, queued count, queue items. |
+| `QueueSnapshot` | Admin queue status. | Running count, running limit, queued count, queue items, per-job cancel action for non-terminal jobs (admin may cancel any job). |
 | `ArtifactList` | Job artifact browser. | Type, file name, size, created time, download action. |
-| `NotificationList` | User notification history. | Status, subject, timestamp, mark read action. |
+| `NotificationList` | Live job-activity history generated client-side from job status and progress events. | Status, subject, timestamp, mark-read action, mark-all-read action, empty state. |
 | `KeyValueList` | Metadata display. | Project details, job details, dataset and repository metadata. |
 | `Timestamp` | Consistent date-time display. | Absolute time with optional relative label. |
 | `Duration` | Display job duration. | Running duration updates while job is active. |

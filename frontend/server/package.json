@@ -1,0 +1,17 @@
+{
+  "name": "ai-training-frontend-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Static file server + /api reverse proxy for the built SPA (replaces nginx).",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "http-proxy-middleware": "^3.0.3"
+  }
+}

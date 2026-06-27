@@ -1,7 +1,13 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { AuditLog, CurrentUser, QueueSnapshot } from "../../shared/api/types";
+import type { AuditLog, CurrentUser, Notification, QueueSnapshot } from "../../shared/api/types";
 import { adminService } from "../../shared/api/services/admin";
 import { mockState } from "../mock-data";
+
+/** Newest-first cap so live-generated notifications can't grow without bound. */
+const MAX_NOTIFICATIONS = 50;
+
+/** Fields the notification listener supplies; the rest are filled in by the reducer. */
+export type NewNotification = Pick<Notification, "jobId" | "type" | "message">;
 
 /** Loads all platform users into `state.admin.users`. ADMIN role required. */
 export const fetchUsers = createAsyncThunk("admin/fetchUsers", () =>
@@ -30,9 +36,23 @@ export const notificationSlice = createSlice({
   name: "notifications",
   initialState: { items: mockState.notifications },
   reducers: {
+    /** Prepends a live job-activity notification (newest first), capped at MAX_NOTIFICATIONS. */
+    pushNotification(state, action: PayloadAction<NewNotification>) {
+      state.items.unshift({
+        notificationId: crypto.randomUUID(),
+        channel: "IN_APP",
+        status: "UNREAD",
+        createdAt: new Date().toISOString(),
+        ...action.payload,
+      });
+      if (state.items.length > MAX_NOTIFICATIONS) state.items.length = MAX_NOTIFICATIONS;
+    },
     markRead(state, action: PayloadAction<string>) {
       const notification = state.items.find((item) => item.notificationId === action.payload);
       if (notification) notification.status = "READ";
+    },
+    markAllRead(state) {
+      for (const item of state.items) item.status = "READ";
     },
   },
 });

@@ -16,6 +16,7 @@
   .page { padding: 32px; }
   .table-head, .table-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1.2fr 1.1fr auto; }
   .data-table:not(.project-table) .table-head, .data-table:not(.project-table) .table-row { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .data-table.admin-queue-table .table-head, .data-table.admin-queue-table .table-row { grid-template-columns: 1.6fr 1.4fr 0.9fr 0.7fr 1.3fr auto; }
   .split-layout { grid-template-columns: minmax(280px, 420px) minmax(0, 1fr); }
   .job-layout { grid-template-columns: minmax(0, 1fr) 360px; }
   .job-side { order: 2; }

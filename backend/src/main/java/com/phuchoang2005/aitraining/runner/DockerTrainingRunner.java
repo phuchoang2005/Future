@@ -1,0 +1,207 @@
+package com.phuchoang2005.aitraining.runner;
+
+import com.phuchoang2005.aitraining.config.AppProperties;
+import com.phuchoang2005.aitraining.domain.Enums.StreamType;
+import com.phuchoang2005.aitraining.domain.Models.TrainingJob;
+import com.phuchoang2005.aitraining.realtime.JobStreamWebSocketHandler;
+import com.phuchoang2005.aitraining.repo.ConfigRepository;
+import com.phuchoang2005.aitraining.repo.JobQueueRepository;
+import com.phuchoang2005.aitraining.repo.JobRepository;
+import com.phuchoang2005.aitraining.repo.SupportRepository;
+import com.phuchoang2005.aitraining.repo.UserRepository;
+import com.phuchoang2005.aitraining.service.ArtifactService;
+import com.phuchoang2005.aitraining.service.ImageBuildService;
+import com.phuchoang2005.aitraining.service.NotificationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * <b>Concrete Strategy</b> in the Strategy pattern — executes training jobs inside Docker
+ * containers (NFR-COMP-004).
+ *
+ * <p>This class extends {@link AbstractTrainingRunner} and is responsible solely for the
+ * engine-specific step: building the {@code docker run} command, launching the container,
+ * and forwarding its stdout/stderr to {@link #logLine} line by line.  All lifecycle
+ * orchestration (workspace setup, artifact collection, notifications, cleanup) is inherited
+ * from the base class.
+ *
+ * <h2>Container naming convention</h2>
+ * <p>Every container is named {@code job-{jobId}} so the reconciler ({@link
+ * com.phuchoang2005.aitraining.service.JobReconcilerService}) can check liveness via
+ * {@code docker inspect} after a server restart.
+ *
+ * <h2>Future extensibility</h2>
+ * <p>Swapping to Kubernetes requires only a new subclass of {@link AbstractTrainingRunner}
+ * that overrides {@link #execute}; no dispatcher or lifecycle code needs to change.
+ *
+ * @see AbstractTrainingRunner  Template Method base class
+ * @see TrainingRunner          Strategy interface
+ */
+@Component
+public class DockerTrainingRunner extends AbstractTrainingRunner {
+  private static final Logger log = LoggerFactory.getLogger(DockerTrainingRunner.class);
+
+  private final ImageBuildService imageBuilder;
+
+  /**
+   * Wires all shared infrastructure into the abstract base class.
+   */
+  public DockerTrainingRunner(JobRepository jobs, JobQueueRepository queue, ConfigRepository configs,
+      SupportRepository support, UserRepository users, ArtifactService artifacts,
+      NotificationService notifications, JobStreamWebSocketHandler ws, ImageBuildService imageBuilder,
+      AppProperties props) {
+    super(jobs, queue, configs, support, users, artifacts, notifications, ws, props);
+    this.imageBuilder = imageBuilder;
+  }
+
+  /**
+   * Engine-specific hook — launches a Docker container for the training job, streams its
+   * output line by line, and returns the container's exit status.
+   *
+   * <p>The container receives two volume mounts:
+   * <ul>
+   *   <li>{@code workspace} → {@code /workspace} (read/write; training output goes here)</li>
+   *   <li>{@code sourcePath} → {@code /source:ro} (read-only; the project's source tree)</li>
+   * </ul>
+   *
+   * <p>stdout and stderr are streamed concurrently on Java virtual threads so neither blocks
+   * the other.  Each line is persisted to {@code job_log_events} and pushed to WebSocket
+   * clients via {@link #logLine}.
+   *
+   * @param job        the training job descriptor
+   * @param workspace  per-job scratch directory already created by the base class
+   * @param sourcePath project source tree, or {@code null} if unavailable
+   * @param entrypoint the shell command to execute inside the container
+   * @return {@code true} if the container exited with code 0, {@code false} otherwise
+   */
+  @Override
+  protected boolean execute(TrainingJob job, Path workspace, Path sourcePath, String entrypoint)
+      throws IOException, InterruptedException {
+    AtomicInteger seqNo = new AtomicInteger(0);
+
+    boolean hasSource = sourcePath != null && Files.exists(sourcePath);
+    String image = ensureImage(job, hasSource ? sourcePath : null, seqNo);
+    List<String> cmd = assembleRunCommand(image, job.projectId(), job.jobId(), workspace,
+        hasSource ? sourcePath : null, entrypoint);
+    log.info("Starting Docker container for job {}: {}", job.jobId(), String.join(" ", cmd));
+
+    ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(false);
+    Process process = pb.start();
+
+    Thread stdoutThread = Thread.ofVirtual().start(() ->
+        streamLines(process.inputReader(), job.jobId(), StreamType.STDOUT, seqNo));
+    Thread stderrThread = Thread.ofVirtual().start(() ->
+        streamLines(new BufferedReader(new InputStreamReader(process.getErrorStream())),
+            job.jobId(), StreamType.STDERR, seqNo));
+
+    stdoutThread.join();
+    stderrThread.join();
+    return process.waitFor() == 0;
+  }
+
+  // ── Private helpers ───────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Reads lines from the given reader until EOF, forwarding each to {@link #logLine}.
+   * Runs on a virtual thread so stdout and stderr can be consumed concurrently.
+   */
+  private void streamLines(BufferedReader reader, UUID jobId, StreamType streamType, AtomicInteger seqNo) {
+    try {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        logLine(jobId, streamType, line, seqNo.incrementAndGet());
+      }
+    } catch (IOException e) {
+      log.warn("Stream read error for job {} ({}): {}", jobId, streamType, e.getMessage());
+    }
+  }
+
+  /**
+   * Pure assembly of the {@code docker run} argument list (no I/O), extracted so the mount and
+   * entrypoint wiring can be unit-tested without Docker.
+   *
+   * <p>The job's per-job workspace is always mounted read/write at {@code /workspace}. When
+   * {@code sourcePath} is non-null it is mounted read-only at {@code /source} and the entrypoint is
+   * prefixed with {@code cd /source &&}; otherwise the entrypoint runs as-is. The container carries
+   * the project label so it can be cleaned up when the project is deleted.
+   */
+  static List<String> assembleRunCommand(String image, UUID projectId, UUID jobId, Path workspace,
+      Path sourcePath, String entrypoint) {
+    List<String> cmd = new ArrayList<>(List.of(
+        "docker", "run", "--rm",
+        "--name", "job-" + jobId,
+        "--label", ImageBuildService.projectLabel(projectId),
+        "-v", workspace.toAbsolutePath() + ":/workspace"));
+
+    if (sourcePath != null) {
+      cmd.addAll(List.of("-v", sourcePath.toAbsolutePath() + ":/source:ro"));
+      cmd.addAll(List.of(image, "sh", "-c", "cd /source && " + entrypoint));
+    } else {
+      cmd.addAll(List.of(image, "sh", "-c", entrypoint));
+    }
+    return cmd;
+  }
+
+  /**
+   * Resolves the image to run the job on, building the per-project image on demand if it is missing.
+   *
+   * <p>Each project trains on {@code project-&#123;projectId&#125;}, normally built at registration. If that
+   * image is absent — e.g. a project created before per-project builds existed, or whose image was
+   * pruned — it is built now (one time) from the project source and the build log is streamed to the
+   * job. Running the dependency-less base image instead would resurface {@code ModuleNotFoundError},
+   * so the job is failed (rather than silently falling back) whenever the image is missing and either
+   * the source is unavailable or the rebuild fails.
+   *
+   * @return the image tag to run on
+   * @throws IOException if the project image is missing and cannot be (re)built
+   */
+  private String ensureImage(TrainingJob job, Path sourcePath, AtomicInteger seqNo) throws IOException {
+    String tag = ImageBuildService.imageTag(job.projectId());
+    if (imageExists(tag)) {
+      return tag;
+    }
+    if (sourcePath == null) {
+      logLine(job.jobId(), StreamType.STDERR,
+          ">>> [image] project image " + tag + " is missing and no project source is available to rebuild it. "
+              + "Re-register the project so its dependency image can be built.", seqNo.incrementAndGet());
+      throw new IOException("Project image " + tag + " missing and no source available to rebuild");
+    }
+
+    logLine(job.jobId(), StreamType.STDOUT,
+        ">>> [image] project image " + tag + " not found — building it now (one-time)…", seqNo.incrementAndGet());
+    ImageBuildService.BuildResult result = imageBuilder.build(job.projectId(), sourcePath);
+    for (String line : result.log().split("\\R")) {
+      logLine(job.jobId(), result.success() ? StreamType.STDOUT : StreamType.STDERR, line, seqNo.incrementAndGet());
+    }
+    if (!result.success()) {
+      throw new IOException("Failed to build project image " + tag + " before training");
+    }
+    return tag;
+  }
+
+  /** Returns {@code true} if a local image with the given tag exists ({@code docker image inspect}). */
+  private boolean imageExists(String tag) {
+    try {
+      Process p = new ProcessBuilder("docker", "image", "inspect", tag).redirectErrorStream(true).start();
+      p.getInputStream().readAllBytes();
+      return p.waitFor() == 0;
+    } catch (IOException | InterruptedException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      log.warn("Could not inspect image {}: {}", tag, e.getMessage());
+      return false;
+    }
+  }
+}

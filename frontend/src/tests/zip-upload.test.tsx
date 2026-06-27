@@ -148,7 +148,7 @@ describe("RegisterProjectPage", () => {
     expect(screen.getByRole("button", { name: /Create Project/i })).toBeDisabled();
   });
 
-  it("enables Create Project when name, entrypoint, and zip file are all provided", async () => {
+  it("enables Create Project when name and zip file are both provided", async () => {
     renderRegisterPage();
     await userEvent.click(screen.getByRole("button", { name: /ZIP Upload/i }));
 

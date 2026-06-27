@@ -15,6 +15,7 @@ import {
   adminSlice, notificationSlice, themeSlice,
   fetchUsers, setUserStatusAsync, fetchAuditLogs,
 } from "./slices/supportSlices";
+import { notificationListener } from "./listeners/notificationListener";
 
 export const store = configureStore({
   reducer: {
@@ -25,6 +26,10 @@ export const store = configureStore({
     admin: adminSlice.reducer,
     theme: themeSlice.reducer,
   },
+  // Generates in-app notifications from live job activity; must run before the
+  // default middleware so it sees actions on their way to the reducers.
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().prepend(notificationListener.middleware),
 });
 
 /**

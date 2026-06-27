@@ -84,6 +84,8 @@ flowchart TD
 
 The per-project Docker image (`project-{projectId}`) is normally **built once at registration** with the project's `requirements.txt` baked in; each job then reuses it. The `Detect Structure` step resolves the **project root** — descending into a single top-level wrapper folder (e.g. the macOS `Archive.zip` → `iris-classifier/` layout) so `requirements.txt` sits at the build-context root.
 
+> **Registration build runs off the request thread.** The registration build (and the config seeding + audit that finalize the project) execute on a dedicated `imageBuildExecutor` thread pool, *not* on the HTTP request thread. The request thread only waits on the resulting `Future` to relay the build log/outcome to the caller. This decouples the build from the client connection: if the user closes the browser tab mid-build, the build and project finalization (or failure cleanup) still complete on the executor instead of being abandoned with a half-registered project. Training execution itself was already decoupled — the `@Scheduled` `JobDispatcherService` runs jobs on the `trainingExecutor` pool, so closing the tab (which only closes the streaming WebSocket) never stops a running container.
+
 That same resolved project root must be used in three places, or dependencies silently go missing:
 
 1. **Build** (registration) — the `docker build` context.

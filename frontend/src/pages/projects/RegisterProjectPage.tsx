@@ -6,6 +6,10 @@ import { Page, PageHeader } from "../../shared/components/Page";
 import { actions } from "../../store/store";
 import { useAppDispatch } from "../../store/hooks";
 
+// Per README-PYTHON.md the only valid entrypoint is `python main.py` (the backend even
+// migrates any other value back to this), so it is fixed rather than user-editable.
+const TRAINING_ENTRYPOINT = "python main.py";
+
 export function RegisterProjectPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -13,9 +17,8 @@ export function RegisterProjectPage() {
   const [projectName, setProjectName] = useState("");
   const [description, setDescription] = useState("");
   const [repositoryUrl, setRepositoryUrl] = useState("");
-  const [trainingEntrypoint, setTrainingEntrypoint] = useState("python main.py");
   const [zipFile, setZipFile] = useState<File | undefined>();
-  const valid = projectName.trim() && trainingEntrypoint.trim() && (sourceType === "GITHUB" ? repositoryUrl.startsWith("https://") : !!zipFile);
+  const valid = projectName.trim() && (sourceType === "GITHUB" ? repositoryUrl.startsWith("https://") : !!zipFile);
 
   // The backend builds the Docker image synchronously inside the create request,
   // so rather than blocking the form we register an optimistic "building" entry,
@@ -25,9 +28,9 @@ export function RegisterProjectPage() {
     const tempId = crypto.randomUUID();
     dispatch(actions.startProjectBuild({ tempId, projectName, description, sourceType }));
     if (sourceType === "ZIP") {
-      dispatch(actions.createZipProjectAsync({ tempId, projectName, description, trainingEntrypoint, file: zipFile! }));
+      dispatch(actions.createZipProjectAsync({ tempId, projectName, description, trainingEntrypoint: TRAINING_ENTRYPOINT, file: zipFile! }));
     } else {
-      dispatch(actions.createProjectAsync({ tempId, projectName, description, sourceType, repositoryUrl, trainingEntrypoint }));
+      dispatch(actions.createProjectAsync({ tempId, projectName, description, sourceType, repositoryUrl, trainingEntrypoint: TRAINING_ENTRYPOINT }));
     }
     navigate("/projects");
   };
@@ -46,7 +49,6 @@ export function RegisterProjectPage() {
           {sourceType === "GITHUB"
             ? <TextField label="Repository URL" value={repositoryUrl} onChange={setRepositoryUrl} placeholder="https://github.com/company/model" />
             : <FileDrop file={zipFile} onChange={setZipFile} />}
-          <TextField label="Training entrypoint" value={trainingEntrypoint} onChange={setTrainingEntrypoint} />
         </FormGrid>
         <div className="form-actions">
           <button className="button primary" disabled={!valid} onClick={submit}>
